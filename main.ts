@@ -1,3 +1,11 @@
+input.onButtonPressed(Button.A, () => {
+    newDir = -1
+})
+
+input.onButtonPressed(Button.B, () => {
+    newDir = 1
+})
+
 function isCollision (x: number, y: number) {
     out = x > 4 || x < 0 || y < 0 || y > 4
     selfHit = led.pointBrightness(x, y) == 255
@@ -23,7 +31,46 @@ function placeFood (num: number) {
     }
 }
 
+function calculateNewHeadPos () {
+    dir = dir + newDir
+    if (dir == -1) {
+        dir = 3
+    } else if (dir == 4) {
+        dir = 0
+    }
+    newHead = (head + 1) % maxLen
+    newX = snake[head][0] + dirs[dir][0]
+    newY = snake[head][1] + dirs[dir][1]
+}
+
+function move() {
+    newDir = 0
+    if (isCollision(newX, newY)) {
+        gameOver(IconNames.Skull, Melodies.Wawawawaa)
+        basic.clearScreen()
+        init()
+    } else {
+        snake[newHead] = [newX, newY]
+        head = newHead
+        ate = led.point(newX, newY)
+        led.plot(newX, newY)
+        if (ate) {
+            // music.playTone(Note.C, music.beat())
+            score += 1
+            if (score == foodNum) {
+                gameOver(IconNames.Happy, Melodies.Punchline)
+                basic.clearScreen()
+                init()
+            }
+        } else {
+            led.unplot(snake[tail][0], snake[tail][1])
+            tail = (tail + 1) % maxLen
+        }
+    }
+}
+
 function init () {
+    music.startMelody(music.builtInMelody(Melodies.Blues), MelodyOptions.ForeverInBackground)
     len = startLen
     snake[0] = [0, 4]
     snake[1] = [1, 4]
@@ -34,10 +81,14 @@ function init () {
     drawSnake()
     dir = 0 // right
     score = 0
+    newDir = 0
+    time = 0
 }
 
-function gameOver (iconId: number) {
-    basic.showIcon(iconId, 2000)
+function gameOver (iconId: number, musicId: number) {
+    music.stopMelody(MelodyStopOptions.All)
+    music.startMelody(music.builtInMelody(musicId), MelodyOptions.Once)
+    basic.showIcon(iconId, 1500)
     basic.showNumber(3)
     basic.showNumber(2)
     basic.showNumber(1)
@@ -65,7 +116,8 @@ let startLen = 3
 let len = startLen
 let foodNum = 10
 let maxLen = startLen + foodNum
-let moves = []
+let newDir = 0
+let time = 0
 
 // right, down, left, up
 let dirs = [[1, 0], [0, 1], [-1, 0], [0, -1]]
@@ -73,44 +125,12 @@ init()
 
 basic.forever(function () {
     
-// Button A for turn left, B for turn right
-    let time = control.millis()
-    let newDir = dir
-    while ((control.millis() - time) < 500) {
-        if (input.buttonIsPressed(Button.A)) {
-            newDir = dir - 1
-        } else if (input.buttonIsPressed(Button.B)) {
-            newDir = dir + 1
-        }
-    }
-    dir = newDir
-    if (dir == -1) {
-        dir = 3
-    } else if (dir == 4) {
-        dir = 0
-    }
-    newHead = (head + 1) % maxLen
-    newX = snake[head][0] + dirs[dir][0]
-    newY = snake[head][1] + dirs[dir][1]
-    if (isCollision(newX, newY)) {
-        gameOver(IconNames.Skull)
-        basic.clearScreen()
-        init()
-    } else {
-        snake[newHead] = [newX, newY]
-        head = newHead
-        ate = led.point(newX, newY)
-        led.plot(newX, newY)
-        if (ate) {
-            score += 1
-            if (score == foodNum) {
-                gameOver(IconNames.Happy)
-                basic.clearScreen()
-                init()
-            }
-        } else {
-            led.unplot(snake[tail][0], snake[tail][1])
-            tail = (tail + 1) % maxLen
-        }
+    if (time == 0) {
+        time = control.millis()
+    } 
+    if ((control.millis() - time) >= 500) {
+        time = 0
+        calculateNewHeadPos()    
+        move()
     }
 })
